@@ -39,7 +39,7 @@ if (-not (Test-Path -LiteralPath $pluginsDir)) {
 # ---------------------------
 # Check if Millenium exists
 # ---------------------------
-$milleniumDllPath = Join-Path $steamInstallPath "millenium.dll"
+$milleniumDllPath = Join-Path $steamInstallPath "millennium.dll"
 
 if (-not (Test-Path -LiteralPath $milleniumDllPath)) {
     Write-Host "Millenium not detected. Installing Millenium..." -ForegroundColor Yellow
@@ -104,13 +104,20 @@ try {
 $pluginFolderName = "lumeasteamplugin"
 $pluginDestination = Join-Path $pluginsDir $pluginFolderName
 
-if (Test-Path -LiteralPath $pluginDestination) {
-    Write-Host "Removing existing plugin directory at '$pluginDestination'..." -ForegroundColor Yellow
-    try {
-        Remove-Item -Recurse -Force -LiteralPath $pluginDestination
-    } catch {
-        Write-Host "WARNING: Could not fully remove existing plugin directory. Some files may remain." -ForegroundColor Yellow
+# Remove any existing Lumea-related plugin folders/files (case-insensitive match on name)
+Write-Host "Searching for existing Lumea plugin folders/files in '$pluginsDir'..." -ForegroundColor Cyan
+try {
+    $existingLumeaItems = Get-ChildItem -LiteralPath $pluginsDir -Force -ErrorAction Stop | Where-Object { $_.Name -match '(?i)lumea' }
+    foreach ($item in $existingLumeaItems) {
+        Write-Host "Removing '$($item.FullName)'" -ForegroundColor Yellow
+        try {
+            Remove-Item -LiteralPath $item.FullName -Recurse -Force -ErrorAction Stop
+        } catch {
+            Write-Host "WARNING: Failed to remove '$($item.FullName)'. Some old plugin files may remain." -ForegroundColor Yellow
+        }
     }
+} catch {
+    Write-Host "WARNING: Failed while scanning for existing Lumea plugin folders/files." -ForegroundColor Yellow
 }
 
 Write-Host "Extracting plugin to '$pluginDestination'..." -ForegroundColor Cyan
