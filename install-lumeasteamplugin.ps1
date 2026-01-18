@@ -37,24 +37,73 @@ if (-not (Test-Path -LiteralPath $pluginsDir)) {
 }
 
 # ---------------------------
-# Check if Millenium exists
+# Check if Millennium exists
 # ---------------------------
-$milleniumDllPath = Join-Path $steamInstallPath "millennium.dll"
+$millenniumDllPath = Join-Path $steamInstallPath "millennium.dll"
 
-if (-not (Test-Path -LiteralPath $milleniumDllPath)) {
-    Write-Host "Millenium not detected. Installing Millenium..." -ForegroundColor Yellow
+if (-not (Test-Path -LiteralPath $millenniumDllPath)) {
+    Write-Host "Millennium not detected. Installing Millennium..." -ForegroundColor Yellow
+    
+    # Fetch latest Millennium installer from GitHub
+    $millenniumOwner = "SteamClientHomebrew"
+    $millenniumRepo = "Installer"
+    $millenniumApiUrl = "https://api.github.com/repos/$millenniumOwner/$millenniumRepo/releases/latest"
+    
+    Write-Host "Fetching latest Millennium installer release..." -ForegroundColor Cyan
     try {
-        iwr -useb "https://steambrew.app/install.ps1" | iex
-        Write-Host "Millenium installation completed." -ForegroundColor Green
+        $millenniumRelease = Invoke-RestMethod -Uri $millenniumApiUrl -Headers @{ "User-Agent" = "LumeaSteamPluginInstaller" }
     } catch {
-        Write-Host "Failed to install Millenium. Aborting Lumea plugin installation." -ForegroundColor Red
+        Write-Host "Failed to query GitHub for the latest Millennium installer release." -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor DarkRed
         Write-Host ""
         Read-Host "Press Enter to close this window..." | Out-Null
         return
     }
+    
+    # Find the .exe asset
+    $millenniumAsset = $millenniumRelease.assets | Where-Object { $_.name -match '\.exe$' } | Select-Object -First 1
+    if (-not $millenniumAsset) {
+        Write-Host "ERROR: Could not find an executable in the latest Millennium installer release." -ForegroundColor Red
+        Write-Host ""
+        Read-Host "Press Enter to close this window..." | Out-Null
+        return
+    }
+    
+    $millenniumDownloadUrl = $millenniumAsset.browser_download_url
+    $millenniumInstallerPath = Join-Path $env:TEMP $millenniumAsset.name
+    
+    Write-Host "Downloading Millennium installer from: $millenniumDownloadUrl" -ForegroundColor Cyan
+    try {
+        Invoke-WebRequest -Uri $millenniumDownloadUrl -OutFile $millenniumInstallerPath -UseBasicParsing
+    } catch {
+        Write-Host "Failed to download the Millennium installer." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor DarkRed
+        Write-Host ""
+        Read-Host "Press Enter to close this window..." | Out-Null
+        return
+    }
+    
+    Write-Host "Running Millennium installer..." -ForegroundColor Cyan
+    try {
+        $process = Start-Process -FilePath $millenniumInstallerPath -Wait -PassThru
+        if ($process.ExitCode -ne 0) {
+            Write-Host "Millennium installer exited with code $($process.ExitCode)." -ForegroundColor Yellow
+        }
+        Write-Host "Millennium installation completed." -ForegroundColor Green
+    } catch {
+        Write-Host "Failed to run Millennium installer." -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor DarkRed
+        Write-Host ""
+        Read-Host "Press Enter to close this window..." | Out-Null
+        return
+    } finally {
+        # Clean up installer
+        if (Test-Path -LiteralPath $millenniumInstallerPath) {
+            Remove-Item -LiteralPath $millenniumInstallerPath -Force -ErrorAction SilentlyContinue
+        }
+    }
 } else {
-    Write-Host "Millenium already installed." -ForegroundColor Green
+    Write-Host "Millennium already installed." -ForegroundColor Green
 }
 
 # ---------------------------
